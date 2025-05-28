@@ -7,46 +7,27 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.Scanner;
 
-// get weather Data from API
 public class WeatherApp {
+    // Позволяет тестам подменять базовый URL
+    static String baseUrl = "https://api.openweathermap.org/data/2.5/weather";
+
     public static JSONObject getWeatherData(String locationName) {
         JSONObject locationData = getLocationData(locationName);
+        if (locationData == null) return null; // <--- fix NPE
 
-
-        // temp and humidity data
-        JSONObject mainWeatherData = (JSONObject) locationData.get("main");
-        double temp = (double) mainWeatherData.get("temp");
-        long humidity = (long) mainWeatherData.get("humidity");
-
-        // wind speed data
-        JSONObject windSpeedData = (JSONObject) locationData.get("wind");
-        double speed = (double) windSpeedData.get("speed");
-
-        JSONArray weatherCondition = (JSONArray) locationData.get("weather");
-        JSONObject pos = (JSONObject) weatherCondition.getFirst();
-        String condition = (String) pos.get("main");
-
-
-
-        JSONObject weatherData = new JSONObject();
-        weatherData.put("temp", temp);
-        weatherData.put("humidity", humidity);
-        weatherData.put("wind_speed", speed);
-        weatherData.put("condition", condition);
-
-        return weatherData;
+        return parseWeatherData(locationData);
     }
 
     public static JSONObject getLocationData(String locationName) {
         locationName = locationName.replaceAll(" ", "+");
 
-        String urlString = "https://api.openweathermap.org/data/2.5/weather?q=" +
+        String urlString = baseUrl + "?q=" +
                 locationName + "&appid=***REMOVED***&units=metric";
 
         try {
             HttpURLConnection conn = fetchApiResponse(urlString);
 
-            if(conn.getResponseCode() != 200) {
+            if(conn == null || conn.getResponseCode() != 200) {
                 System.out.println("Error: Could not connect to API");
                 return null;
             } else {
@@ -58,7 +39,6 @@ public class WeatherApp {
                 }
 
                 scanner.close();
-
                 conn.disconnect();
 
                 JSONParser parser = new JSONParser();
@@ -72,7 +52,7 @@ public class WeatherApp {
         return null;
     }
 
-    private static HttpURLConnection fetchApiResponse(String urlString) {
+    static HttpURLConnection fetchApiResponse(String urlString) {
         try {
             URL url = new URL(urlString);
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
@@ -86,5 +66,41 @@ public class WeatherApp {
         }
 
         return null;
+    }
+
+    // Этот метод можно безопасно тестировать отдельно
+    public static JSONObject parseWeatherData(JSONObject locationData) {
+        JSONObject mainWeatherData = (JSONObject) locationData.get("main");
+        double temp = getDouble(mainWeatherData, "temp");
+        long humidity = getLong(mainWeatherData, "humidity");
+
+        JSONObject windSpeedData = (JSONObject) locationData.get("wind");
+        double speed = getDouble(windSpeedData, "speed");
+
+        JSONArray weatherCondition = (JSONArray) locationData.get("weather");
+        JSONObject pos = (JSONObject) weatherCondition.getFirst();
+        String condition = (String) pos.get("main");
+
+        JSONObject weatherData = new JSONObject();
+        weatherData.put("temp", temp);
+        weatherData.put("humidity", humidity);
+        weatherData.put("wind_speed", speed);
+        weatherData.put("condition", condition);
+
+        return weatherData;
+    }
+
+    // Универсальные геттеры для корректного каста!
+    private static double getDouble(JSONObject obj, String key) {
+        Object value = obj.get(key);
+        if (value instanceof Long) {
+            return ((Long) value).doubleValue();
+        }
+        return (Double) value;
+    }
+    private static long getLong(JSONObject obj, String key) {
+        Object value = obj.get(key);
+        if (value instanceof Long) return (Long) value;
+        return ((Double) value).longValue();
     }
 }
