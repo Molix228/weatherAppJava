@@ -20,9 +20,9 @@ public class WeatherApp {
 
     public static JSONObject getLocationData(String locationName) {
         locationName = locationName.replaceAll(" ", "+");
-
+        String apiKey = System.getenv("API_KEY");
         String urlString = baseUrl + "?q=" +
-                locationName + "&appid=***REMOVED***&units=metric";
+                locationName + "&appid=" + apiKey + "&units=metric";
 
         try {
             HttpURLConnection conn = fetchApiResponse(urlString);
